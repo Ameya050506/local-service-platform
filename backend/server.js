@@ -21,6 +21,7 @@ const server = http.createServer(app);
 // Allowed origins for CORS (localhost + deployed frontend)
 const allowedOrigins = [
   'http://localhost:5173',
+  'https://local-service-platform-steel.vercel.app',
   process.env.CLIENT_URL,
 ].filter(Boolean);
 
