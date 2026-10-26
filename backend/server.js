@@ -18,10 +18,16 @@ const app = express();
 // 1. Create HTTP server using Express app
 const server = http.createServer(app);
 
+// Allowed origins for CORS (localhost + deployed frontend)
+const allowedOrigins = [
+  'http://localhost:5173',
+  process.env.CLIENT_URL,
+].filter(Boolean);
+
 // 2. Initialize Socket.IO with CORS settings
 const io = new Server(server, {
   cors: {
-    origin: "http://localhost:5173", // Your React frontend URL
+    origin: allowedOrigins,
     methods: ["GET", "POST", "PUT", "DELETE"]
   }
 });
@@ -40,7 +46,7 @@ io.on('connection', (socket) => {
 // ---------------------------
 
 // Middleware
-app.use(cors()); 
+app.use(cors({ origin: allowedOrigins, credentials: true }));
 app.use(express.json()); 
 
 /* Experiment 5 – Security hardening */

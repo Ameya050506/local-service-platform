@@ -1,0 +1,22 @@
+# Render Blueprint - Backend Deployment Config
+# Deploy with one click: https://render.com/deploy
+services:
+  - type: web
+    name: quickfix-backend
+    runtime: node
+    region: oregon
+    plan: free
+    rootDir: backend
+    buildCommand: npm install
+    startCommand: node server.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: MONGO_URI
+        sync: false  # You'll set this manually
+      - key: JWT_SECRET
+        generateValue: true
+      - key: GMAIL_USER
+        sync: false
+      - key: GMAIL_APP_PASSWORD
+        sync: false
