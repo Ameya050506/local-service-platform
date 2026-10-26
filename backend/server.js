@@ -46,7 +46,7 @@ io.on('connection', (socket) => {
 });
 // ---------------------------
 
-// Middleware
+app.set('trust proxy', 1);
 app.use(cors({ origin: allowedOrigins, credentials: true }));
 app.use(express.json()); 
 
@@ -58,7 +58,7 @@ const limiter = rateLimit({
   max: 100,                                 // limit each IP to 100 requests per window
   standardHeaders: true,
   legacyHeaders: false,
-  message: { message: 'Too many requests, please try again later.' },
+  validate: { xForwardedForHeader: false },
 });
 app.use('/api', limiter);
 
