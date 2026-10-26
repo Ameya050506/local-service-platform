@@ -67,17 +67,18 @@ jobs:
       - name: Verify server can start (syntax check)
         run: node --check server.js
 
-  # ─── Deploy Frontend to Vercel ───
+  # ─── Deploy Frontend to Vercel (optional / if secrets exist) ───
   deploy-frontend:
     name: Deploy Frontend to Vercel
     needs: [frontend, backend]
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master') && secrets.VERCEL_TOKEN != ''
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Deploy to Vercel
+        continue-on-error: true
         uses: amondnet/vercel-action@v25
         with:
           vercel-token: ${{ secrets.VERCEL_TOKEN }}
