@@ -23,7 +23,6 @@ import { useAuth } from '../hooks/useAuth';
 const SOCKET_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 const socket = io(SOCKET_URL, { reconnection: true, reconnectionAttempts: 5 });
 
-// Declared outside components to satisfy ESLint static component rules
 function SkeletonRow() {
   return (
     <tr className="animate-pulse border-b border-slate-100 bg-white">
@@ -53,9 +52,9 @@ function SkeletonRow() {
 
 export default function Dashboard() {
   const { user } = useAuth();
-  const { requests: contextRequests, isLoading, cancelRequest, updateRequestStatus } = useRequests();
+  const { requests: contextRequests, isLoading, cancelRequest, updateRequestStatus, refetchRequests } = useRequests();
   
-  const [liveRequests, setLiveRequests] = useState([]);
+  const [liveRequests, setLiveRequests] = useState(Array.isArray(contextRequests) ? contextRequests : []);
   const [toast, setToast] = useState(null);
 
   const showToast = (message, type = 'success') => {
@@ -63,17 +62,25 @@ export default function Dashboard() {
     setTimeout(() => setToast(null), 3000);
   };
 
+  // Re-fetch data on mount with current auth token
   useEffect(() => {
-    setLiveRequests(contextRequests);
+    if (refetchRequests) {
+      refetchRequests();
+    }
+  }, [refetchRequests]);
+
+  useEffect(() => {
+    setLiveRequests(Array.isArray(contextRequests) ? contextRequests : []);
   }, [contextRequests]);
 
   useEffect(() => {
     socket.on('requestUpdated', (updatedData) => {
-      setLiveRequests((prevRequests) => 
-        prevRequests.map((req) => 
+      setLiveRequests((prevRequests) => {
+        const safe = Array.isArray(prevRequests) ? prevRequests : [];
+        return safe.map((req) => 
           (req.id || req._id) === (updatedData.id || updatedData._id) ? updatedData : req
-        )
-      );
+        );
+      });
     });
     return () => socket.off('requestUpdated');
   }, []);
@@ -129,7 +136,7 @@ export default function Dashboard() {
             </span>
           </div>
           <p className="text-slate-500 text-sm font-medium">
-            Welcome back, <span className="font-extrabold text-slate-900">{user.name}</span>. Manage your service operations in real-time.
+            Welcome back, <span className="font-extrabold text-slate-900">{user.name || 'User'}</span>. Manage your service operations in real-time.
           </p>
         </div>
       </div>
@@ -145,18 +152,22 @@ export default function Dashboard() {
 // ==========================================
 // 1. CLIENT PORTAL (Urban Company Style)
 // ==========================================
-function ClientPanel({ requests, isLoading, cancelRequest, showToast }) {
+function ClientPanel({ requests = [], isLoading, cancelRequest, showToast }) {
+  const safeRequests = Array.isArray(requests) ? requests : [];
   const [selectedReq, setSelectedReq] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState('All');
 
-  const pendingCount = requests.filter(r => r.status === 'Pending').length;
-  const inProgressCount = requests.filter(r => r.status === 'In Progress').length;
-  const completedCount = requests.filter(r => r.status === 'Completed').length;
+  const pendingCount = safeRequests.filter(r => r && r.status === 'Pending').length;
+  const inProgressCount = safeRequests.filter(r => r && r.status === 'In Progress').length;
+  const completedCount = safeRequests.filter(r => r && r.status === 'Completed').length;
 
-  const filteredRequests = requests.filter(req => {
-    const matchesSearch = req.service.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                          (req.id || req._id || '').toLowerCase().includes(searchQuery.toLowerCase());
+  const filteredRequests = safeRequests.filter(req => {
+    if (!req) return false;
+    const serviceName = req.service || '';
+    const reqId = req.id || req._id || '';
+    const matchesSearch = serviceName.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                          reqId.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesTab = activeTab === 'All' || req.status === activeTab;
     return matchesSearch && matchesTab;
   });
@@ -418,17 +429,18 @@ function ClientPanel({ requests, isLoading, cancelRequest, showToast }) {
 // ==========================================
 // 2. WORKER PORTAL (Service Partner UI)
 // ==========================================
-function WorkerPanel({ requests, isLoading, updateRequestStatus, user, showToast }) {
-  const availableJobs = requests.filter(req => req.status === 'Pending');
-  const myActiveJobs = requests.filter(req => req.status === 'In Progress' && req.provider === user.name);
+function WorkerPanel({ requests = [], isLoading, updateRequestStatus, user, showToast }) {
+  const safeRequests = Array.isArray(requests) ? requests : [];
+  const availableJobs = safeRequests.filter(req => req && req.status === 'Pending');
+  const myActiveJobs = safeRequests.filter(req => req && req.status === 'In Progress' && req.provider === user?.name);
 
   const handleAcceptJob = (jobId) => {
-    updateRequestStatus(jobId, 'In Progress', user.name);
+    updateRequestStatus(jobId, 'In Progress', user?.name || 'Partner');
     showToast('Job Accepted! Customer notified via email.', 'success');
   };
 
   const handleCompleteJob = (jobId) => {
-    updateRequestStatus(jobId, 'Completed', user.name);
+    updateRequestStatus(jobId, 'Completed', user?.name || 'Partner');
     showToast('Job marked as completed. Earnings updated!', 'success');
   };
 
@@ -541,7 +553,8 @@ function WorkerPanel({ requests, isLoading, updateRequestStatus, user, showToast
 // ==========================================
 // 3. ADMIN PORTAL (Platform Operations)
 // ==========================================
-function AdminPanel({ requests, isLoading, cancelRequest, showToast }) {
+function AdminPanel({ requests = [], isLoading, cancelRequest, showToast }) {
+  const safeRequests = Array.isArray(requests) ? requests : [];
   const handleDelete = (id) => {
     if(window.confirm("ADMIN OVERRIDE: Permanently delete this record?")) {
       cancelRequest(id);
@@ -566,22 +579,22 @@ function AdminPanel({ requests, isLoading, cancelRequest, showToast }) {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
         <div className="p-6 bg-purple-50/60 rounded-2xl border border-purple-100">
           <h3 className="font-extrabold text-purple-800 uppercase tracking-wider text-xs mb-1">Total System Volume</h3>
-          <p className="text-4xl font-black text-purple-900">{requests.length}</p>
+          <p className="text-4xl font-black text-purple-900">{safeRequests.length}</p>
         </div>
         <div className="p-6 bg-amber-50/60 rounded-2xl border border-amber-100">
           <h3 className="font-extrabold text-amber-800 uppercase tracking-wider text-xs mb-1">Pending In Queue</h3>
-          <p className="text-4xl font-black text-amber-900">{requests.filter(r => r.status === 'Pending').length}</p>
+          <p className="text-4xl font-black text-amber-900">{safeRequests.filter(r => r && r.status === 'Pending').length}</p>
         </div>
         <div className="p-6 bg-emerald-50/60 rounded-2xl border border-emerald-100">
           <h3 className="font-extrabold text-emerald-800 uppercase tracking-wider text-xs mb-1">Completed Fulfilled</h3>
-          <p className="text-4xl font-black text-emerald-900">{requests.filter(r => r.status === 'Completed').length}</p>
+          <p className="text-4xl font-black text-emerald-900">{safeRequests.filter(r => r && r.status === 'Completed').length}</p>
         </div>
       </div>
 
       <div>
         <h3 className="text-base font-black text-slate-950 mb-3">Live Dispatch Audit Feed</h3>
         <div className="border border-slate-200 rounded-2xl overflow-hidden bg-white shadow-sm">
-          {requests.map(req => (
+          {safeRequests.map(req => (
             <div key={req.id || req._id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 border-b border-slate-100 last:border-0 hover:bg-slate-50 transition-colors">
               <div className="mb-2 sm:mb-0">
                 <p className="font-extrabold text-slate-900 text-sm">{req.service}</p>
@@ -604,7 +617,7 @@ function AdminPanel({ requests, isLoading, cancelRequest, showToast }) {
               </div>
             </div>
           ))}
-          {requests.length === 0 && (
+          {safeRequests.length === 0 && (
             <p className="p-8 text-center text-slate-400 text-xs font-semibold">No transactions recorded yet.</p>
           )}
         </div>

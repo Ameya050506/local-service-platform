@@ -190,7 +190,11 @@ export default function Home() {
     });
     setIsModalOpen(false);
     setStep(1);
-    navigate('/dashboard');
+    if (user) {
+      navigate('/dashboard');
+    } else {
+      navigate('/login');
+    }
   };
 
   return (

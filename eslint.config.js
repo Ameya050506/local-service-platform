@@ -25,6 +25,7 @@ export default defineConfig([
       'react-refresh/only-export-components': 'warn',
       'react-hooks/set-state-in-effect': 'warn',
       'react-hooks/static-components': 'warn',
+      'react-hooks/preserve-manual-memoization': 'warn',
     },
   },
 ])

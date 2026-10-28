@@ -17,10 +17,18 @@ router.get('/', protect, async (req, res) => {
   }
 });
 
-// POST a new request (protected - clients only)
-router.post('/', protect, roleGuard('client', 'admin'), validateRequest, async (req, res) => {
+// POST a new request (allow authenticated users, and allow guest bookings with email)
+router.post('/', async (req, res, next) => {
+  const authHeader = req.headers.authorization;
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    return protect(req, res, () => {
+      return roleGuard('client', 'admin')(req, res, next);
+    });
+  }
+  next();
+}, validateRequest, async (req, res) => {
   try {
-    const { service, description, location, date, desc } = req.body;
+    const { service, description, location, date, desc, customerEmail } = req.body;
 
     const newRequest = new ServiceRequest({
       service,
@@ -28,14 +36,14 @@ router.post('/', protect, roleGuard('client', 'admin'), validateRequest, async (
       location,
       date,
       desc: desc || description,
-      customerEmail: req.user.email,   // Store customer email for notifications
+      customerEmail: req.user ? req.user.email : (customerEmail || null),
       status: 'Pending',
       statusColor: 'bg-yellow-100 text-yellow-800',
     });
 
     const savedRequest = await newRequest.save();
     
-    // Emit WebSocket event for new request
+    // Emit WebSocket event for real-time updates
     const io = req.app.get('io');
     if (io) io.emit('newRequest', savedRequest);
     

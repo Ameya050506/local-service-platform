@@ -1,21 +1,17 @@
+import 'dotenv/config';
 import express from 'express';
 import mongoose from 'mongoose';
 import cors from 'cors';
-import dotenv from 'dotenv';
-import http from 'http'; // <-- NEW: Built-in Node module
-import { Server } from 'socket.io'; // <-- NEW: Socket.IO
+import http from 'http';
+import { Server } from 'socket.io';
 import requestRoutes from './routes/requestRoutes.js';
 import authRoutes from './routes/authRoutes.js';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 
-// Load environment variables from .env file
-dotenv.config();
-
 const app = express();
 
-// --- NEW WEBSOCKET SETUP ---
-// 1. Create HTTP server using Express app
+// --- WEBSOCKET SETUP ---
 const server = http.createServer(app);
 
 // Allowed origins for CORS (localhost + deployed frontend)
@@ -25,7 +21,7 @@ const allowedOrigins = [
   process.env.CLIENT_URL,
 ].filter(Boolean);
 
-// 2. Initialize Socket.IO with CORS settings
+// Initialize Socket.IO with CORS settings
 const io = new Server(server, {
   cors: {
     origin: allowedOrigins,
@@ -33,10 +29,9 @@ const io = new Server(server, {
   }
 });
 
-// 3. Make 'io' accessible inside your controllers
+// Make 'io' accessible inside controllers
 app.set('io', io);
 
-// 4. Listen for connections
 io.on('connection', (socket) => {
   console.log(`🔌 New client connected: ${socket.id}`);
   
@@ -44,18 +39,17 @@ io.on('connection', (socket) => {
     console.log(`❌ Client disconnected: ${socket.id}`);
   });
 });
-// ---------------------------
 
 app.set('trust proxy', 1);
 app.use(cors({ origin: allowedOrigins, credentials: true }));
 app.use(express.json()); 
 
 /* Experiment 5 – Security hardening */
-app.use(helmet());                         // Sets secure HTTP headers
+app.use(helmet());
 
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000,               // 15 minutes
-  max: 100,                                 // limit each IP to 100 requests per window
+  windowMs: 15 * 60 * 1000,
+  max: 100,
   standardHeaders: true,
   legacyHeaders: false,
   validate: { xForwardedForHeader: false },
@@ -80,7 +74,6 @@ app.use((err, req, res, next) => {
 // Start Server
 const PORT = process.env.PORT || 5000;
 
-// IMPORTANT: Changed app.listen to server.listen
 server.listen(PORT, () => {
   console.log(`🚀 Server running on http://localhost:${PORT} with WebSockets enabled`);
 });

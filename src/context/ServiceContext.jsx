@@ -30,10 +30,15 @@ export function ServiceProvider({ children }) {
       
       const savedRequest = await response.json();
       
-      // Tell the reducer to add the database-saved request to the UI
-      dispatch({ type: 'ADD_REQUEST', payload: savedRequest });
+      if (response.ok && savedRequest && (savedRequest._id || savedRequest.id)) {
+        dispatch({ type: 'ADD_REQUEST', payload: savedRequest });
+        await fetchData();
+        return { success: true, data: savedRequest };
+      }
+      return { success: false, message: savedRequest.message };
     } catch (error) {
       console.error("Failed to save request to database", error);
+      return { success: false, error };
     }
   };
 
@@ -41,8 +46,6 @@ export function ServiceProvider({ children }) {
   const cancelRequest = async (id) => {
     try {
       await fetch(`${API_URL}/${id}`, { method: 'DELETE', headers: getAuthHeaders() });
-      
-      // Tell the reducer to remove it from the UI
       dispatch({ type: 'CANCEL_REQUEST', payload: id });
     } catch (error) {
       console.error("Failed to delete request from database", error);
@@ -60,52 +63,54 @@ export function ServiceProvider({ children }) {
       
       const updatedData = await response.json();
 
-      // Dispatch to useReducer to update the global state instantly
-      dispatch({ 
-        type: 'UPDATE_REQUEST', 
-        payload: updatedData 
-      });
+      if (response.ok && updatedData) {
+        dispatch({ 
+          type: 'UPDATE_REQUEST', 
+          payload: updatedData 
+        });
+      }
     } catch (error) {
       console.error('Error updating request status:', error);
     }
   };
 
-  // 4. GET: Fetch data when the app loads
+  // 4. GET: Fetch data from MongoDB
+  const fetchData = async () => {
+    dispatch({ type: 'SET_LOADING', payload: true });
+    
+    try {
+      const res = await fetch(API_URL, { headers: getAuthHeaders() });
+      const dbRequests = await res.json();
+
+      const mockServices = [
+        { name: 'Electrical Help', icon: Zap, color: 'text-yellow-500', bg: 'bg-yellow-50', desc: 'Wiring, repairs, and installations.' },
+        { name: 'Plumbing Works', icon: Droplets, color: 'text-blue-500', bg: 'bg-blue-50', desc: 'Leakages, pipes, and fittings.' },
+        { name: 'AC Repair', icon: Fan, color: 'text-cyan-500', bg: 'bg-cyan-50', desc: 'Servicing, gas filling, and fixes.' },
+        { name: 'House Painting', icon: Paintbrush, color: 'text-purple-500', bg: 'bg-purple-50', desc: 'Interior and exterior painting.' },
+        { name: 'Carpentry', icon: Wrench, color: 'text-orange-500', bg: 'bg-orange-50', desc: 'Furniture repair and assembly.' },
+        { name: 'Vehicle Repair', icon: Car, color: 'text-slate-700', bg: 'bg-slate-100', desc: 'On-spot breakdown assistance.' },
+      ];
+
+      // CRITICAL FIX: Ensure requests is ALWAYS an array even if 401/403/500 occurs
+      const requestsArray = (res.ok && Array.isArray(dbRequests)) ? dbRequests : [];
+
+      dispatch({ 
+        type: 'INITIALIZE_DATA', 
+        payload: { services: mockServices, requests: requestsArray } 
+      });
+
+    } catch (error) {
+      console.error("Failed to fetch from database. Is the backend running?", error);
+      dispatch({ type: 'SET_LOADING', payload: false });
+    }
+  };
+
   useEffect(() => {
-    const fetchData = async () => {
-      dispatch({ type: 'SET_LOADING', payload: true });
-      
-      try {
-        // Fetch real data from MongoDB
-        const res = await fetch(API_URL, { headers: getAuthHeaders() });
-        const dbRequests = await res.json();
-
-        // (We keep services hardcoded since they don't change and we didn't build a DB table for them)
-        const mockServices = [
-          { name: 'Electrical Help', icon: Zap, color: 'text-yellow-500', bg: 'bg-yellow-50', desc: 'Wiring, repairs, and installations.' },
-          { name: 'Plumbing Works', icon: Droplets, color: 'text-blue-500', bg: 'bg-blue-50', desc: 'Leakages, pipes, and fittings.' },
-          { name: 'AC Repair', icon: Fan, color: 'text-cyan-500', bg: 'bg-cyan-50', desc: 'Servicing, gas filling, and fixes.' },
-          { name: 'House Painting', icon: Paintbrush, color: 'text-purple-500', bg: 'bg-purple-50', desc: 'Interior and exterior painting.' },
-          { name: 'Carpentry', icon: Wrench, color: 'text-orange-500', bg: 'bg-orange-50', desc: 'Furniture repair and assembly.' },
-          { name: 'Vehicle Repair', icon: Car, color: 'text-slate-700', bg: 'bg-slate-100', desc: 'On-spot breakdown assistance.' },
-        ];
-
-        dispatch({ 
-          type: 'INITIALIZE_DATA', 
-          payload: { services: mockServices, requests: dbRequests } 
-        });
-
-      } catch (error) {
-        console.error("Failed to fetch from database. Is the backend running?", error);
-        dispatch({ type: 'SET_LOADING', payload: false });
-      }
-    };
-
     fetchData();
   }, []);
 
   return (
-    <ServiceContext.Provider value={{ ...state, addRequest, cancelRequest, updateRequestStatus }}>
+    <ServiceContext.Provider value={{ ...state, addRequest, cancelRequest, updateRequestStatus, refetchRequests: fetchData }}>
       {children}
     </ServiceContext.Provider>
   );
