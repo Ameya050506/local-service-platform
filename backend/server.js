@@ -24,8 +24,9 @@ const allowedOrigins = [
 // Initialize Socket.IO with CORS settings
 const io = new Server(server, {
   cors: {
-    origin: allowedOrigins,
-    methods: ["GET", "POST", "PUT", "DELETE"]
+    origin: (origin, callback) => callback(null, true),
+    methods: ["GET", "POST", "PUT", "DELETE"],
+    credentials: true
   }
 });
 
@@ -41,7 +42,10 @@ io.on('connection', (socket) => {
 });
 
 app.set('trust proxy', 1);
-app.use(cors({ origin: allowedOrigins, credentials: true }));
+app.use(cors({
+  origin: (origin, callback) => callback(null, true),
+  credentials: true
+}));
 app.use(express.json()); 
 
 /* Experiment 5 – Security hardening */
