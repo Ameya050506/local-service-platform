@@ -20,41 +20,52 @@ export const serviceReducer = (state, action) => {
         isLoading: false,
       };
       
-    case 'ADD_REQUEST':
+    case 'ADD_REQUEST': {
+      if (!action.payload) return state;
+      const newId = action.payload.id || action.payload._id;
+      const safeRequests = Array.isArray(state.requests) ? state.requests : [];
+      const exists = safeRequests.some((req) => {
+        const id = req.id || req._id;
+        return id && newId && id === newId;
+      });
+      if (exists) {
+        return {
+          ...state,
+          requests: safeRequests.map((req) => 
+            ((req.id || req._id) === newId ? { ...req, ...action.payload } : req)
+          )
+        };
+      }
       return {
         ...state,
-        requests: [...state.requests, action.payload],
+        requests: [action.payload, ...safeRequests],
       };
-      
+    }
+
     case 'CANCEL_REQUEST':
-      // Safety check: Don't do anything if no ID was passed
       if (!action.payload) return state; 
-      
       return {
         ...state,
-        requests: state.requests.filter((req) => {
-          const id = req._id || req.id;
-          // Must have a real ID, and it must NOT match the deleted one
+        requests: (Array.isArray(state.requests) ? state.requests : []).filter((req) => {
+          const id = req.id || req._id;
           return id && id !== action.payload; 
         }),
       };
       
-    case 'UPDATE_REQUEST':
+    case 'UPDATE_REQUEST': {
       if (!action.payload) return state;
-
+      const targetId = action.payload.id || action.payload._id;
       return {
         ...state,
-        requests: state.requests.map((req) => {
-          const reqId = req._id || req.id;
-          const payloadId = action.payload._id || action.payload.id;
-
-          // STRICT CHECK: Only update if BOTH have real IDs and they match exactly
-          if (reqId && payloadId && reqId === payloadId) {
-            return action.payload;
+        requests: (Array.isArray(state.requests) ? state.requests : []).map((req) => {
+          const reqId = req.id || req._id;
+          if (reqId && targetId && reqId === targetId) {
+            return { ...req, ...action.payload };
           }
-          return req; // Otherwise, leave the job alone
+          return req;
         }),
       };
+    }
 
     default:
       return state;

@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { Navigate } from 'react-router-dom';
-import { io } from 'socket.io-client';
 import { 
   Clock, 
   CheckCircle2, 
@@ -18,10 +17,6 @@ import {
 } from 'lucide-react';
 import { useRequests } from '../hooks/useRequests';
 import { useAuth } from '../hooks/useAuth';
-
-// Initialize Socket.IO connection
-const SOCKET_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-const socket = io(SOCKET_URL, { reconnection: true, reconnectionAttempts: 5 });
 
 function SkeletonRow() {
   return (
@@ -52,9 +47,7 @@ function SkeletonRow() {
 
 export default function Dashboard() {
   const { user } = useAuth();
-  const { requests: contextRequests, isLoading, cancelRequest, updateRequestStatus, refetchRequests } = useRequests();
-  
-  const [liveRequests, setLiveRequests] = useState(Array.isArray(contextRequests) ? contextRequests : []);
+  const { requests, isLoading, cancelRequest, updateRequestStatus, refetchRequests } = useRequests();
   const [toast, setToast] = useState(null);
 
   const showToast = (message, type = 'success') => {
@@ -62,33 +55,18 @@ export default function Dashboard() {
     setTimeout(() => setToast(null), 3000);
   };
 
-  // Re-fetch data on mount with current auth token
+  // Re-fetch data once on mount with current auth token
   useEffect(() => {
     if (refetchRequests) {
       refetchRequests();
     }
-  }, [refetchRequests]);
-
-  useEffect(() => {
-    setLiveRequests(Array.isArray(contextRequests) ? contextRequests : []);
-  }, [contextRequests]);
-
-  useEffect(() => {
-    socket.on('requestUpdated', (updatedData) => {
-      setLiveRequests((prevRequests) => {
-        const safe = Array.isArray(prevRequests) ? prevRequests : [];
-        return safe.map((req) => 
-          (req.id || req._id) === (updatedData.id || updatedData._id) ? updatedData : req
-        );
-      });
-    });
-    return () => socket.off('requestUpdated');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   if (!user) return <Navigate to="/login" />;
 
   const panelProps = {
-    requests: liveRequests,
+    requests: Array.isArray(requests) ? requests : [],
     isLoading,
     cancelRequest,
     updateRequestStatus,

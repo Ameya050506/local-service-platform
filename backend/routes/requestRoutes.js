@@ -36,7 +36,7 @@ router.post('/', async (req, res, next) => {
       location,
       date,
       desc: desc || description,
-      customerEmail: req.user ? req.user.email : (customerEmail || null),
+      customerEmail: customerEmail || (req.user ? req.user.email : null),
       status: 'Pending',
       statusColor: 'bg-yellow-100 text-yellow-800',
     });
@@ -126,6 +126,7 @@ router.put('/:id/status', protect, validateStatusUpdate, async (req, res) => {
       const workerEmail = workerUser?.email || req.user.email;
 
       sendConfirmationEmail({
+        bookingId: updatedRequest._id ? updatedRequest._id.toString() : (updatedRequest.id || ''),
         customerEmail: updatedRequest.customerEmail || 'customer@example.com',
         workerName: provider,
         workerEmail: workerEmail,
