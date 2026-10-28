@@ -80,7 +80,10 @@ export function ServiceProvider({ children }) {
     
     try {
       const res = await fetch(API_URL, { headers: getAuthHeaders() });
-      const dbRequests = await res.json();
+      let dbRequests = [];
+      if (res.ok) {
+        dbRequests = await res.json();
+      }
 
       const mockServices = [
         { name: 'Electrical Help', icon: Zap, color: 'text-yellow-500', bg: 'bg-yellow-50', desc: 'Wiring, repairs, and installations.' },

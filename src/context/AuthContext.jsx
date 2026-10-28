@@ -12,7 +12,12 @@ export const AuthProvider = ({ children }) => {
     const token = localStorage.getItem('token');
     
     if (storedUser && token) {
-      setUser(JSON.parse(storedUser));
+      try {
+        setUser(JSON.parse(storedUser));
+      } catch {
+        localStorage.removeItem('user');
+        localStorage.removeItem('token');
+      }
     }
     setIsLoading(false);
   }, []);
@@ -25,7 +30,12 @@ export const AuthProvider = ({ children }) => {
         body: JSON.stringify({ email, password })
       });
       
-      const data = await response.json();
+      let data = {};
+      try {
+        data = await response.json();
+      } catch {
+        data = { message: response.status === 429 ? 'Too many requests. Please wait a moment.' : 'Server response error' };
+      }
       
       if (!response.ok) {
         throw new Error(data.message || 'Login failed');
@@ -50,7 +60,12 @@ export const AuthProvider = ({ children }) => {
         body: JSON.stringify({ name, email, password, role })
       });
       
-      const data = await response.json();
+      let data = {};
+      try {
+        data = await response.json();
+      } catch {
+        data = { message: response.status === 429 ? 'Too many requests. Please wait a moment.' : 'Server response error' };
+      }
       
       if (!response.ok) {
         throw new Error(data.message || 'Registration failed');
@@ -69,7 +84,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, register, logout, isLoading }}>
+    <AuthContext.Provider value={{ user, isLoading, login, register, logout }}>
       {children}
     </AuthContext.Provider>
   );

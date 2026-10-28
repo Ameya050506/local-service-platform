@@ -49,10 +49,11 @@ app.use(helmet());
 
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 100,
+  max: 2000, // Generous limit so local dev and testing never get choked
   standardHeaders: true,
   legacyHeaders: false,
   validate: { xForwardedForHeader: false },
+  message: { message: 'Too many requests, please try again later.' },
 });
 app.use('/api', limiter);
 
