@@ -3,7 +3,7 @@ import ServiceRequest from '../models/ServiceRequest.js';
 import User from '../models/User.js';
 import { protect, roleGuard } from '../middleware/auth.js';
 import { validateRequest, validateStatusUpdate } from '../middleware/validate.js';
-import { sendConfirmationEmail } from '../utils/sendEmail.js';
+import { sendConfirmationEmail, sendBookingCreatedEmail } from '../utils/sendEmail.js';
 
 const router = express.Router();
 
@@ -46,6 +46,19 @@ router.post('/', async (req, res, next) => {
     // Emit WebSocket event for real-time updates
     const io = req.app.get('io');
     if (io) io.emit('newRequest', savedRequest);
+
+    // Send immediate booking confirmation email to customer
+    const emailToNotify = savedRequest.customerEmail;
+    if (emailToNotify) {
+      sendBookingCreatedEmail({
+        bookingId: savedRequest._id ? savedRequest._id.toString() : (savedRequest.id || ''),
+        customerEmail: emailToNotify,
+        service: savedRequest.service,
+        location: savedRequest.location,
+        date: savedRequest.date,
+        desc: savedRequest.desc
+      }).catch(err => console.error('Booking confirmation email error:', err));
+    }
     
     res.status(201).json(savedRequest);
   } catch (error) {
