@@ -19,6 +19,7 @@ A full-stack MERN application that connects customers with verified local servic
 | 7 | Validating RESTful APIs using Postman | Postman Collection | ✅ |
 | 8 | Real-time communication via WebSockets + Email | Socket.IO + Nodemailer | ✅ |
 | 9 | CI/CD Deployment with GitHub Actions + Vercel | GitHub Actions + Vercel | ✅ |
+| 10 | Deploy full-stack apps using DevOps tools and Docker | Docker + Docker Compose | ✅ |
 
 ---
 
@@ -56,6 +57,10 @@ local-service-platform/
 ├── postman/                    # Postman collection (Exp 7)
 ├── .github/workflows/ci.yml   # GitHub Actions CI/CD (Exp 9)
 ├── vercel.json                 # Vercel deployment config (Exp 9)
+├── Dockerfile                  # Frontend multi-stage build (Exp 10)
+├── nginx.conf                  # Nginx SPA + reverse proxy config (Exp 10)
+├── docker-compose.yml          # Full-stack orchestration (Exp 10)
+├── .dockerignore               # Docker build exclusions
 └── package.json
 ```
 
@@ -196,9 +201,68 @@ Required GitHub Secrets:
 
 ---
 
+## 🐳 Docker Deployment (Experiment 10)
+
+### Architecture
+
+```
+┌──────────────────────────────────────────────────────┐
+│                 Docker Compose                        │
+│                                                      │
+│  ┌──────────┐   ┌──────────────┐   ┌──────────────┐ │
+│  │ MongoDB  │◀──│   Backend    │◀──│  Frontend    │ │
+│  │ mongo:7  │   │ Node + Express│   │ Nginx + React│ │
+│  │ :27017   │   │    :5000     │   │   :3000→80   │ │
+│  └──────────┘   └──────────────┘   └──────────────┘ │
+│       │                                              │
+│  [mongo-data]        quickfix-network (bridge)       │
+└──────────────────────────────────────────────────────┘
+```
+
+### Quick Start with Docker
+
+```bash
+# Build and start all containers
+docker-compose up --build
+
+# Run in detached mode
+docker-compose up --build -d
+
+# View logs
+docker-compose logs -f
+
+# Stop all containers
+docker-compose down
+
+# Stop and remove volumes (reset database)
+docker-compose down -v
+```
+
+Once running:
+- **Frontend**: http://localhost:3000
+- **Backend API**: http://localhost:5000
+- **MongoDB**: mongodb://localhost:27017/quickfix
+
+### Container Details
+
+| Container | Image | Port | Description |
+|-----------|-------|------|-------------|
+| `quickfix-frontend` | Nginx (Alpine) | 3000 → 80 | Serves React SPA, proxies API/WebSocket to backend |
+| `quickfix-backend` | Node 20 (Alpine) | 5000 | Express REST API + Socket.IO |
+| `quickfix-mongo` | MongoDB 7 | 27017 | Database with persistent volume |
+
+### Key Docker Features
+- **Multi-stage frontend build** – Vite builds in Node, served by lightweight Nginx
+- **Nginx reverse proxy** – Routes `/api/*` and `/socket.io/*` to backend container
+- **Health checks** – All services have Docker health checks for reliability
+- **Persistent data** – MongoDB data survives container restarts via named volume
+- **Bridge network** – Containers communicate via internal DNS (`mongodb`, `backend`)
+
+---
+
 ## 🛠️ Tech Stack
 
 - **Frontend**: React 19, Tailwind CSS 3, Vite 8, Lucide Icons, Socket.IO Client
 - **Backend**: Express 5, MongoDB + Mongoose 9, JWT, Socket.IO 4, Nodemailer
 - **Security**: Helmet, express-rate-limit, express-validator, bcryptjs
-- **DevOps**: GitHub Actions, Vercel, Docker-ready
+- **DevOps**: GitHub Actions, Vercel, Docker, Docker Compose, Nginx

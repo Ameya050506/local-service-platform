@@ -67,6 +67,23 @@ jobs:
       - name: Verify server can start (syntax check)
         run: node --check server.js
 
+  # ─── Docker CI (Experiment 10) ───
+  docker:
+    name: Docker Build Validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Backend Image
+        run: docker build -t quickfix-backend:test ./backend
+
+      - name: Build Frontend Image
+        run: docker build -t quickfix-frontend:test .
+
   # ─── Deploy Frontend to Vercel (optional / if secrets exist) ───
   deploy-frontend:
     name: Deploy Frontend to Vercel
